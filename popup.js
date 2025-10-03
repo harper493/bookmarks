@@ -22,6 +22,7 @@ class ChromeBookmarkManager {
         document.getElementById('deleteBookmark').addEventListener('click', () => this.deleteBookmark());
         document.getElementById('moveBookmark').addEventListener('click', () => this.showMoveModal());
         document.getElementById('deleteBrokenLinks').addEventListener('click', () => this.deleteBrokenLinks());
+        document.getElementById('checkAllLinks').addEventListener('click', () => this.checkAllLinks());
 
         // Move functionality
         document.getElementById('confirmMove').addEventListener('click', () => this.confirmMove());
@@ -344,61 +345,82 @@ class ChromeBookmarkManager {
         bookmarksTree.innerHTML = '<div class="empty-state"><h3>Error</h3><p>Unable to load bookmarks</p></div>';
     }
 
-    async deleteBrokenLinks() {
-        if (!this.currentBookmark) {
-            this.showError('Please select a bookmark first');
-            return;
-        }
-
-        const confirmed = confirm('This will delete ALL broken bookmarks. Are you sure?');
-        if (!confirmed) return;
-
+    async checkAllLinks() {
         try {
-            // Get all bookmarks
-            const bookmarks = await chrome.bookmarks.getTree();
-            const allBookmarks = this.flattenBookmarks(bookmarks);
-            
-            // Filter out folders (bookmarks without URLs)
-            const urlBookmarks = allBookmarks.filter(bookmark => bookmark.url);
-            
-            console.log(`Checking ${urlBookmarks.length} bookmarks for broken links...`);
-            
-            const brokenBookmarks = [];
-            
-            // Check each bookmark URL
-            for (const bookmark of urlBookmarks) {
-                try {
-                    const isBroken = await this.checkIfUrlIsBroken(bookmark.url);
-                    if (isBroken) {
-                        brokenBookmarks.push(bookmark);
-                        console.log(`Broken link found: ${bookmark.title} - ${bookmark.url}`);
+            // Get all bookmark elements in the current view
+            const bookmarkElements = document.querySelectorAll('.bookmark');
+            let checkedCount = 0;
+            let brokenCount = 0;
+
+            for (const bookmarkElement of bookmarkElements) {
+                const bookmarkId = bookmarkElement.getAttribute('data-bookmark-id');
+                if (!bookmarkId) continue;
+
+                // Get the bookmark data
+                const bookmark = await chrome.bookmarks.get(bookmarkId);
+                if (!bookmark[0] || !bookmark[0].url) continue;
+
+                checkedCount++;
+                
+                // Check if it's obviously broken
+                if (this.isObviouslyBroken(bookmark[0].url)) {
+                    bookmarkElement.classList.add('broken');
+                    brokenCount++;
+                    console.log(`Marked as broken: ${bookmark[0].title} - ${bookmark[0].url}`);
+                } else {
+                    // Try to check with a simple method
+                    try {
+                        const isBroken = await this.checkIfUrlIsBroken(bookmark[0].url);
+                        if (isBroken) {
+                            bookmarkElement.classList.add('broken');
+                            brokenCount++;
+                            console.log(`Marked as broken: ${bookmark[0].title} - ${bookmark[0].url}`);
+                        }
+                    } catch (error) {
+                        console.log(`Could not check ${bookmark[0].url}:`, error);
+                        // Don't mark as broken if we can't check
                     }
-                } catch (error) {
-                    console.log(`Error checking ${bookmark.url}:`, error);
-                    // Consider it broken if we can't check it
-                    brokenBookmarks.push(bookmark);
                 }
             }
+
+            alert(`Checked ${checkedCount} bookmarks. Found ${brokenCount} broken links.`);
             
-            if (brokenBookmarks.length === 0) {
-                alert('No broken links found!');
+        } catch (error) {
+            console.error('Error checking links:', error);
+            this.showError('Error checking links: ' + error.message);
+        }
+    }
+
+    async deleteBrokenLinks() {
+        try {
+            // Get all bookmarks marked as broken in the current view
+            const brokenElements = document.querySelectorAll('.bookmark.broken');
+            
+            if (brokenElements.length === 0) {
+                alert('No broken links found in current view!');
                 return;
             }
-            
-            const deleteConfirmed = confirm(`Found ${brokenBookmarks.length} broken links. Delete them all?`);
-            if (!deleteConfirmed) return;
+
+            const confirmed = confirm(`This will delete ${brokenElements.length} broken bookmarks. Are you sure?`);
+            if (!confirmed) return;
+
+            let deletedCount = 0;
             
             // Delete all broken bookmarks
-            for (const bookmark of brokenBookmarks) {
+            for (const bookmarkElement of brokenElements) {
+                const bookmarkId = bookmarkElement.getAttribute('data-bookmark-id');
+                if (!bookmarkId) continue;
+
                 try {
-                    await chrome.bookmarks.remove(bookmark.id);
-                    console.log(`Deleted broken bookmark: ${bookmark.title}`);
+                    await chrome.bookmarks.remove(bookmarkId);
+                    deletedCount++;
+                    console.log(`Deleted broken bookmark: ${bookmarkId}`);
                 } catch (error) {
-                    console.error(`Error deleting bookmark ${bookmark.title}:`, error);
+                    console.error(`Error deleting bookmark ${bookmarkId}:`, error);
                 }
             }
             
-            alert(`Successfully deleted ${brokenBookmarks.length} broken bookmarks!`);
+            alert(`Successfully deleted ${deletedCount} broken bookmarks!`);
             
             // Refresh the bookmark list
             this.loadBookmarks();
@@ -562,11 +584,10 @@ class ChromeBookmarkManager {
     async checkAndMarkBrokenLink(bookmark, bookmarkDiv) {
         if (!bookmark.url) return; // Skip folders
         
-        // Check for obviously broken URLs first
+        // Only check for obviously broken URLs - no complex detection
         if (this.isObviouslyBroken(bookmark.url)) {
             bookmarkDiv.classList.add('broken');
             console.log(`Marked as obviously broken: ${bookmark.title} - ${bookmark.url}`);
-            return;
         }
 
         // Add a right-click context menu for manual marking
@@ -574,18 +595,6 @@ class ChromeBookmarkManager {
             e.preventDefault();
             this.showContextMenu(e, bookmark, bookmarkDiv);
         });
-
-        // For other URLs, do a more thorough check
-        try {
-            const isBroken = await this.checkIfUrlIsBroken(bookmark.url);
-            if (isBroken) {
-                bookmarkDiv.classList.add('broken');
-                console.log(`Marked as broken: ${bookmark.title} - ${bookmark.url}`);
-            }
-        } catch (error) {
-            console.log(`Error checking ${bookmark.url}:`, error);
-            // Don't mark as broken if we can't check it
-        }
     }
 
     showContextMenu(event, bookmark, bookmarkDiv) {
@@ -652,15 +661,34 @@ class ChromeBookmarkManager {
             
             // Check for obviously broken patterns
             if (urlObj.protocol === 'file:') return true;
+            if (urlObj.protocol === 'chrome:') return true;
+            if (urlObj.protocol === 'chrome-extension:') return true;
+            if (urlObj.protocol === 'moz-extension:') return true;
+            if (urlObj.protocol === 'about:') return true;
+            
+            // Check for localhost without port (usually broken)
             if (urlObj.hostname === 'localhost' && !urlObj.port) return true;
-            if (urlObj.hostname === '127.0.0.1') return true;
+            if (urlObj.hostname === '127.0.0.1' && !urlObj.port) return true;
+            if (urlObj.hostname === '0.0.0.0') return true;
+            
+            // Check for example/test domains
             if (urlObj.hostname.includes('example.com')) return true;
             if (urlObj.hostname.includes('test.com')) return true;
-            if (urlObj.hostname.includes('localhost')) return true;
+            if (urlObj.hostname.includes('example.org')) return true;
+            if (urlObj.hostname.includes('example.net')) return true;
             
             // Check for malformed URLs
             if (urlObj.hostname === '' || urlObj.hostname === 'undefined') return true;
-            if (urlObj.protocol === 'http:' && !urlObj.hostname.includes('.')) return true;
+            if (urlObj.hostname === 'null') return true;
+            if (urlObj.hostname === 'false') return true;
+            
+            // Check for URLs without proper domain structure
+            if (urlObj.protocol === 'http:' && !urlObj.hostname.includes('.') && urlObj.hostname !== 'localhost') return true;
+            if (urlObj.protocol === 'https:' && !urlObj.hostname.includes('.') && urlObj.hostname !== 'localhost') return true;
+            
+            // Check for common broken patterns
+            if (url.includes('javascript:') && !url.includes('void(0)')) return true;
+            if (url.includes('data:') && url.length < 50) return true; // Very short data URLs are usually broken
             
             return false;
         } catch (error) {
