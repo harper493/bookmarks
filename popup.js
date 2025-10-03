@@ -362,19 +362,19 @@ class ChromeBookmarkManager {
 
                 checkedCount++;
                 
-                // Check if it's obviously broken
+                // Check if it's obviously broken (malformed URLs)
                 if (this.isObviouslyBroken(bookmark[0].url)) {
                     bookmarkElement.classList.add('broken');
                     brokenCount++;
-                    console.log(`Marked as broken: ${bookmark[0].title} - ${bookmark[0].url}`);
+                    console.log(`Marked as obviously broken: ${bookmark[0].title} - ${bookmark[0].url}`);
                 } else {
-                    // Try to check with a simple method
+                    // Check for 4xx HTTP errors
                     try {
                         const isBroken = await this.checkIfUrlIsBroken(bookmark[0].url);
                         if (isBroken) {
                             bookmarkElement.classList.add('broken');
                             brokenCount++;
-                            console.log(`Marked as broken: ${bookmark[0].title} - ${bookmark[0].url}`);
+                            console.log(`Marked as broken (4xx error): ${bookmark[0].title} - ${bookmark[0].url}`);
                         }
                     } catch (error) {
                         console.log(`Could not check ${bookmark[0].url}:`, error);
@@ -383,7 +383,7 @@ class ChromeBookmarkManager {
                 }
             }
 
-            alert(`Checked ${checkedCount} bookmarks. Found ${brokenCount} broken links.`);
+            alert(`Checked ${checkedCount} bookmarks. Found ${brokenCount} broken links (4xx errors or malformed URLs).`);
             
         } catch (error) {
             console.error('Error checking links:', error);
@@ -438,67 +438,25 @@ class ChromeBookmarkManager {
                 return true;
             }
 
-            // Use a more reliable CORS proxy with better error handling
-            try {
-                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
-                    method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    console.log(`Proxy failed for ${url}, status: ${response.status}`);
-                    return false; // Don't mark as broken if proxy fails
-                }
-                
-                const data = await response.json();
-                
-                // Check if we got valid content
-                if (data.contents) {
-                    // Check for common error indicators in the content
-                    const content = data.contents.toLowerCase();
-                    if (content.includes('404 not found') || 
-                        content.includes('page not found') ||
-                        content.includes('error 404') ||
-                        content.includes('not found') ||
-                        content.includes('this page cannot be found')) {
-                        return true; // Definitely broken
-                    }
-                    return false; // Content exists, probably working
-                }
-                
-                // Check HTTP status codes
-                if (data.status && data.status.http_code) {
-                    const statusCode = data.status.http_code;
-                    if (statusCode >= 400 && statusCode < 500) {
-                        return true; // Client error - broken
-                    }
-                    if (statusCode >= 500) {
-                        return true; // Server error - broken
-                    }
-                    return false; // 2xx or 3xx - working
-                }
-                
-                return false; // No clear indication of being broken
-                
-            } catch (proxyError) {
-                console.log(`CORS proxy error for ${url}:`, proxyError);
-                
-                // Fallback: try a simple fetch with no-cors
-                try {
-                    await fetch(url, {
-                        method: 'HEAD',
-                        mode: 'no-cors',
-                        cache: 'no-cache'
-                    });
-                    return false; // If it doesn't throw, probably working
-                } catch (fetchError) {
-                    console.log(`Direct fetch also failed for ${url}:`, fetchError);
-                    return false; // Don't mark as broken if we can't determine
-                }
+            // Use CORS proxy to get HTTP status code
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
+                method: 'GET',
+                mode: 'cors'
+            });
+            
+            if (!response.ok) {
+                return false; // Don't mark as broken if proxy fails
             }
+            
+            const data = await response.json();
+            
+            // Check HTTP status code - only 4xx errors are broken
+            if (data.status && data.status.http_code) {
+                const statusCode = data.status.http_code;
+                return statusCode >= 400 && statusCode < 500; // Only 4xx errors are broken
+            }
+            
+            return false; // No status code info, assume working
             
         } catch (error) {
             console.log(`Error checking ${url}:`, error);
@@ -584,10 +542,22 @@ class ChromeBookmarkManager {
     async checkAndMarkBrokenLink(bookmark, bookmarkDiv) {
         if (!bookmark.url) return; // Skip folders
         
-        // Only check for obviously broken URLs - no complex detection
+        // Check for obviously broken URLs (malformed)
         if (this.isObviouslyBroken(bookmark.url)) {
             bookmarkDiv.classList.add('broken');
             console.log(`Marked as obviously broken: ${bookmark.title} - ${bookmark.url}`);
+        } else {
+            // Check for 4xx HTTP errors
+            try {
+                const isBroken = await this.checkIfUrlIsBroken(bookmark.url);
+                if (isBroken) {
+                    bookmarkDiv.classList.add('broken');
+                    console.log(`Marked as broken (4xx error): ${bookmark.title} - ${bookmark.url}`);
+                }
+            } catch (error) {
+                console.log(`Could not check ${bookmark.url}:`, error);
+                // Don't mark as broken if we can't check
+            }
         }
 
         // Add a right-click context menu for manual marking
