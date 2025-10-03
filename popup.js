@@ -411,35 +411,125 @@ class ChromeBookmarkManager {
 
     async checkIfUrlIsBroken(url) {
         try {
-            // Use a CORS proxy or try to fetch the URL
+            // First, validate the URL format
+            if (!this.isValidUrl(url)) {
+                return true;
+            }
+
+            // Try multiple validation methods
+            const methods = [
+                () => this.checkWithHeadRequest(url),
+                () => this.checkWithCorsProxy(url),
+                () => this.checkWithFavicon(url)
+            ];
+
+            for (const method of methods) {
+                try {
+                    const result = await method();
+                    if (result !== null) {
+                        return result; // Return the result if we got a definitive answer
+                    }
+                } catch (error) {
+                    console.log(`Validation method failed for ${url}:`, error);
+                    continue; // Try next method
+                }
+            }
+
+            // If all methods failed, assume it's working (don't mark as broken)
+            return false;
+            
+        } catch (error) {
+            console.log(`Error checking ${url}:`, error);
+            return false; // Don't mark as broken if we can't check
+        }
+    }
+
+    isValidUrl(url) {
+        try {
+            new URL(url);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    async checkWithHeadRequest(url) {
+        try {
+            // Try a HEAD request first (lighter than GET)
+            const response = await fetch(url, {
+                method: 'HEAD',
+                mode: 'no-cors', // This bypasses CORS for basic checks
+                cache: 'no-cache'
+            });
+            
+            // With no-cors, we can't read the status, but if it doesn't throw, it's probably working
+            return false; // Not broken
+        } catch (error) {
+            // If HEAD fails, try GET
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                });
+                return false; // Not broken
+            } catch (getError) {
+                return true; // Probably broken
+            }
+        }
+    }
+
+    async checkWithCorsProxy(url) {
+        try {
             const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
                 method: 'GET',
                 mode: 'cors'
             });
             
             if (!response.ok) {
-                return true; // Consider broken if proxy fails
+                return null; // Can't determine, try other method
             }
             
             const data = await response.json();
             
-            // Check if the response indicates a broken link
-            if (data.status && data.status.http_code >= 400) {
-                return true;
+            // Only mark as broken if we get a clear 4xx or 5xx error
+            if (data.status && data.status.http_code >= 400 && data.status.http_code < 500) {
+                return true; // Client error - definitely broken
             }
             
-            // If we get here, the link is probably working
-            return false;
-            
+            return false; // Not broken
         } catch (error) {
-            // If we can't check it, consider it broken
-            return true;
+            return null; // Can't determine, try other method
+        }
+    }
+
+    async checkWithFavicon(url) {
+        try {
+            const domain = new URL(url).origin;
+            const faviconUrl = `${domain}/favicon.ico`;
+            
+            const response = await fetch(faviconUrl, {
+                method: 'HEAD',
+                mode: 'no-cors'
+            });
+            
+            return false; // If favicon loads, site is probably working
+        } catch (error) {
+            return null; // Can't determine from favicon
         }
     }
 
     async checkAndMarkBrokenLink(bookmark, bookmarkDiv) {
         if (!bookmark.url) return; // Skip folders
         
+        // Only check for obviously broken URLs (malformed, localhost, etc.)
+        if (this.isObviouslyBroken(bookmark.url)) {
+            bookmarkDiv.classList.add('broken');
+            console.log(`Marked as obviously broken: ${bookmark.title} - ${bookmark.url}`);
+            return;
+        }
+
+        // For other URLs, do a quick check but don't mark as broken unless very certain
         try {
             const isBroken = await this.checkIfUrlIsBroken(bookmark.url);
             if (isBroken) {
@@ -448,8 +538,29 @@ class ChromeBookmarkManager {
             }
         } catch (error) {
             console.log(`Error checking ${bookmark.url}:`, error);
-            // Mark as broken if we can't check it
-            bookmarkDiv.classList.add('broken');
+            // Don't mark as broken if we can't check it - assume it's working
+        }
+    }
+
+    isObviouslyBroken(url) {
+        try {
+            const urlObj = new URL(url);
+            
+            // Check for obviously broken patterns
+            if (urlObj.protocol === 'file:') return true;
+            if (urlObj.hostname === 'localhost' && !urlObj.port) return true;
+            if (urlObj.hostname === '127.0.0.1') return true;
+            if (urlObj.hostname.includes('example.com')) return true;
+            if (urlObj.hostname.includes('test.com')) return true;
+            if (urlObj.hostname.includes('localhost')) return true;
+            
+            // Check for malformed URLs
+            if (urlObj.hostname === '' || urlObj.hostname === 'undefined') return true;
+            if (urlObj.protocol === 'http:' && !urlObj.hostname.includes('.')) return true;
+            
+            return false;
+        } catch (error) {
+            return true; // Malformed URL
         }
     }
 }
