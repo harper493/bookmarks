@@ -416,27 +416,67 @@ class ChromeBookmarkManager {
                 return true;
             }
 
-            // Try multiple validation methods
-            const methods = [
-                () => this.checkWithHeadRequest(url),
-                () => this.checkWithCorsProxy(url),
-                () => this.checkWithFavicon(url)
-            ];
-
-            for (const method of methods) {
-                try {
-                    const result = await method();
-                    if (result !== null) {
-                        return result; // Return the result if we got a definitive answer
+            // Use a more reliable CORS proxy with better error handling
+            try {
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
                     }
-                } catch (error) {
-                    console.log(`Validation method failed for ${url}:`, error);
-                    continue; // Try next method
+                });
+                
+                if (!response.ok) {
+                    console.log(`Proxy failed for ${url}, status: ${response.status}`);
+                    return false; // Don't mark as broken if proxy fails
+                }
+                
+                const data = await response.json();
+                
+                // Check if we got valid content
+                if (data.contents) {
+                    // Check for common error indicators in the content
+                    const content = data.contents.toLowerCase();
+                    if (content.includes('404 not found') || 
+                        content.includes('page not found') ||
+                        content.includes('error 404') ||
+                        content.includes('not found') ||
+                        content.includes('this page cannot be found')) {
+                        return true; // Definitely broken
+                    }
+                    return false; // Content exists, probably working
+                }
+                
+                // Check HTTP status codes
+                if (data.status && data.status.http_code) {
+                    const statusCode = data.status.http_code;
+                    if (statusCode >= 400 && statusCode < 500) {
+                        return true; // Client error - broken
+                    }
+                    if (statusCode >= 500) {
+                        return true; // Server error - broken
+                    }
+                    return false; // 2xx or 3xx - working
+                }
+                
+                return false; // No clear indication of being broken
+                
+            } catch (proxyError) {
+                console.log(`CORS proxy error for ${url}:`, proxyError);
+                
+                // Fallback: try a simple fetch with no-cors
+                try {
+                    await fetch(url, {
+                        method: 'HEAD',
+                        mode: 'no-cors',
+                        cache: 'no-cache'
+                    });
+                    return false; // If it doesn't throw, probably working
+                } catch (fetchError) {
+                    console.log(`Direct fetch also failed for ${url}:`, fetchError);
+                    return false; // Don't mark as broken if we can't determine
                 }
             }
-
-            // If all methods failed, assume it's working (don't mark as broken)
-            return false;
             
         } catch (error) {
             console.log(`Error checking ${url}:`, error);
@@ -522,14 +562,20 @@ class ChromeBookmarkManager {
     async checkAndMarkBrokenLink(bookmark, bookmarkDiv) {
         if (!bookmark.url) return; // Skip folders
         
-        // Only check for obviously broken URLs (malformed, localhost, etc.)
+        // Check for obviously broken URLs first
         if (this.isObviouslyBroken(bookmark.url)) {
             bookmarkDiv.classList.add('broken');
             console.log(`Marked as obviously broken: ${bookmark.title} - ${bookmark.url}`);
             return;
         }
 
-        // For other URLs, do a quick check but don't mark as broken unless very certain
+        // Add a right-click context menu for manual marking
+        bookmarkDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.showContextMenu(e, bookmark, bookmarkDiv);
+        });
+
+        // For other URLs, do a more thorough check
         try {
             const isBroken = await this.checkIfUrlIsBroken(bookmark.url);
             if (isBroken) {
@@ -538,8 +584,66 @@ class ChromeBookmarkManager {
             }
         } catch (error) {
             console.log(`Error checking ${bookmark.url}:`, error);
-            // Don't mark as broken if we can't check it - assume it's working
+            // Don't mark as broken if we can't check it
         }
+    }
+
+    showContextMenu(event, bookmark, bookmarkDiv) {
+        // Remove existing context menu if any
+        const existingMenu = document.getElementById('contextMenu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'contextMenu';
+        contextMenu.style.cssText = `
+            position: fixed;
+            top: ${event.clientY}px;
+            left: ${event.clientX}px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            padding: 5px 0;
+            min-width: 150px;
+        `;
+
+        const markBrokenItem = document.createElement('div');
+        markBrokenItem.textContent = 'Mark as Broken';
+        markBrokenItem.style.cssText = `
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+        `;
+        markBrokenItem.addEventListener('click', () => {
+            bookmarkDiv.classList.add('broken');
+            contextMenu.remove();
+        });
+
+        const markWorkingItem = document.createElement('div');
+        markWorkingItem.textContent = 'Mark as Working';
+        markWorkingItem.style.cssText = `
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+        `;
+        markWorkingItem.addEventListener('click', () => {
+            bookmarkDiv.classList.remove('broken');
+            contextMenu.remove();
+        });
+
+        contextMenu.appendChild(markBrokenItem);
+        contextMenu.appendChild(markWorkingItem);
+        document.body.appendChild(contextMenu);
+
+        // Remove context menu when clicking elsewhere
+        setTimeout(() => {
+            document.addEventListener('click', () => {
+                contextMenu.remove();
+            }, { once: true });
+        }, 100);
     }
 
     isObviouslyBroken(url) {
