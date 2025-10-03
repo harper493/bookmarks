@@ -21,6 +21,7 @@ class ChromeBookmarkManager {
         document.getElementById('openBookmark').addEventListener('click', () => this.openBookmark());
         document.getElementById('deleteBookmark').addEventListener('click', () => this.deleteBookmark());
         document.getElementById('moveBookmark').addEventListener('click', () => this.showMoveModal());
+        document.getElementById('deleteBrokenLinks').addEventListener('click', () => this.deleteBrokenLinks());
 
         // Move functionality
         document.getElementById('confirmMove').addEventListener('click', () => this.confirmMove());
@@ -338,6 +339,99 @@ class ChromeBookmarkManager {
         // Hide the loading state
         const bookmarksTree = document.getElementById('bookmarksTree');
         bookmarksTree.innerHTML = '<div class="empty-state"><h3>Error</h3><p>Unable to load bookmarks</p></div>';
+    }
+
+    async deleteBrokenLinks() {
+        if (!this.currentBookmark) {
+            this.showError('Please select a bookmark first');
+            return;
+        }
+
+        const confirmed = confirm('This will delete ALL broken bookmarks. Are you sure?');
+        if (!confirmed) return;
+
+        try {
+            // Get all bookmarks
+            const bookmarks = await chrome.bookmarks.getTree();
+            const allBookmarks = this.flattenBookmarks(bookmarks);
+            
+            // Filter out folders (bookmarks without URLs)
+            const urlBookmarks = allBookmarks.filter(bookmark => bookmark.url);
+            
+            console.log(`Checking ${urlBookmarks.length} bookmarks for broken links...`);
+            
+            const brokenBookmarks = [];
+            
+            // Check each bookmark URL
+            for (const bookmark of urlBookmarks) {
+                try {
+                    const isBroken = await this.checkIfUrlIsBroken(bookmark.url);
+                    if (isBroken) {
+                        brokenBookmarks.push(bookmark);
+                        console.log(`Broken link found: ${bookmark.title} - ${bookmark.url}`);
+                    }
+                } catch (error) {
+                    console.log(`Error checking ${bookmark.url}:`, error);
+                    // Consider it broken if we can't check it
+                    brokenBookmarks.push(bookmark);
+                }
+            }
+            
+            if (brokenBookmarks.length === 0) {
+                alert('No broken links found!');
+                return;
+            }
+            
+            const deleteConfirmed = confirm(`Found ${brokenBookmarks.length} broken links. Delete them all?`);
+            if (!deleteConfirmed) return;
+            
+            // Delete all broken bookmarks
+            for (const bookmark of brokenBookmarks) {
+                try {
+                    await chrome.bookmarks.remove(bookmark.id);
+                    console.log(`Deleted broken bookmark: ${bookmark.title}`);
+                } catch (error) {
+                    console.error(`Error deleting bookmark ${bookmark.title}:`, error);
+                }
+            }
+            
+            alert(`Successfully deleted ${brokenBookmarks.length} broken bookmarks!`);
+            
+            // Refresh the bookmark list
+            this.loadBookmarks();
+            
+        } catch (error) {
+            console.error('Error deleting broken links:', error);
+            this.showError('Error deleting broken links: ' + error.message);
+        }
+    }
+
+    async checkIfUrlIsBroken(url) {
+        try {
+            // Use a CORS proxy or try to fetch the URL
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
+                method: 'GET',
+                mode: 'cors'
+            });
+            
+            if (!response.ok) {
+                return true; // Consider broken if proxy fails
+            }
+            
+            const data = await response.json();
+            
+            // Check if the response indicates a broken link
+            if (data.status && data.status.http_code >= 400) {
+                return true;
+            }
+            
+            // If we get here, the link is probably working
+            return false;
+            
+        } catch (error) {
+            // If we can't check it, consider it broken
+            return true;
+        }
     }
 }
 

@@ -358,6 +358,16 @@
             transform: translateY(-1px);
         }
 
+        .action-btn.warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .action-btn.warning:hover {
+            background: #e67e22;
+            transform: translateY(-1px);
+        }
+
         .action-btn.secondary {
             background: #6c757d;
             color: white;
@@ -503,6 +513,7 @@
                 <button id="openBookmark" class="action-btn primary">Open<br>Bookmark</button>
                 <button id="deleteBookmark" class="action-btn danger">Delete</button>
                 <button id="moveBookmark" class="action-btn secondary">Move to<br>Folder</button>
+                <button id="deleteBrokenLinks" class="action-btn warning">Delete<br>Broken<br?>Links</button>
             </div>
             <div id="moveFolderModal" class="move-folder-modal">
                 <h4>Select Destination Folder:</h4>
