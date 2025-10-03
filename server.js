@@ -3,17 +3,22 @@ const fs = require('fs');
 const path = require('path');
 
 const server = http.createServer((req, res) => {
+    // Add CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
     let filePath = '.' + req.url;
-    if (filePath === './') {
+    if (filePath === './' || filePath === './index.html') {
         filePath = './test.html';
     }
 
     const extname = String(path.extname(filePath)).toLowerCase();
     const mimeTypes = {
-        '.html': 'text/html',
-        '.js': 'text/javascript',
-        '.css': 'text/css',
-        '.json': 'application/json',
+        '.html': 'text/html; charset=utf-8',
+        '.js': 'text/javascript; charset=utf-8',
+        '.css': 'text/css; charset=utf-8',
+        '.json': 'application/json; charset=utf-8',
         '.png': 'image/png',
         '.jpg': 'image/jpg',
         '.gif': 'image/gif',
@@ -27,16 +32,16 @@ const server = http.createServer((req, res) => {
         '.wasm': 'application/wasm'
     };
 
-    const contentType = mimeTypes[extname] || 'application/octet-stream';
+    const contentType = mimeTypes[extname] || 'text/plain; charset=utf-8';
 
     fs.readFile(filePath, (error, content) => {
         if (error) {
             if (error.code === 'ENOENT') {
-                res.writeHead(404, { 'Content-Type': 'text/html' });
-                res.end('<h1>404 - File Not Found</h1>', 'utf-8');
+                res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end('<h1>404 - File Not Found</h1><p>Try: <a href="/test.html">/test.html</a></p>', 'utf-8');
             } else {
-                res.writeHead(500);
-                res.end(`Server Error: ${error.code}`);
+                res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(`<h1>Server Error: ${error.code}</h1>`, 'utf-8');
             }
         } else {
             res.writeHead(200, { 'Content-Type': contentType });
