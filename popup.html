@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmark Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📚 Bookmark Manager</h1>
+            <button id="refreshBtn" class="refresh-btn" title="Refresh bookmarks">🔄</button>
+        </header>
+        
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search bookmarks..." class="search-input">
+        </div>
+        
+        <div class="bookmarks-container">
+            <div id="bookmarksTree" class="bookmarks-tree"></div>
+        </div>
+        
+        <div id="bookmarkModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="bookmarkTitle">Bookmark Details</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="thumbnail-container">
+                        <img id="bookmarkThumbnail" src="" alt="Page thumbnail" class="thumbnail">
+                        <div id="thumbnailLoading" class="loading">Loading thumbnail...</div>
+                    </div>
+                    <div class="bookmark-info">
+                        <p><strong>URL:</strong> <span id="bookmarkUrl"></span></p>
+                        <p><strong>Folder:</strong> <span id="bookmarkFolder"></span></p>
+                    </div>
+                    <div class="bookmark-actions">
+                        <button id="openBookmark" class="btn btn-primary">Open Bookmark</button>
+                        <button id="deleteBookmark" class="btn btn-danger">Delete</button>
+                        <button id="moveBookmark" class="btn btn-secondary">Move to Folder</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="moveModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Move Bookmark</h2>
+                    <span class="close-move">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>Select destination folder:</p>
+                    <div id="foldersTree" class="folders-tree"></div>
+                    <div class="modal-actions">
+                        <button id="confirmMove" class="btn btn-primary">Move</button>
+                        <button id="cancelMove" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
