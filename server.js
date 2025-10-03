@@ -50,7 +50,7 @@ const server = http.createServer((req, res) => {
     });
 });
 
-const PORT = 8080;
+const PORT = 9000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running at http://localhost:${PORT}/`);
     console.log(`Bookmark Manager available at: http://localhost:${PORT}/test.html`);
