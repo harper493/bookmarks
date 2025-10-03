@@ -3,52 +3,519 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bookmark Manager</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Chrome Bookmark Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            width: 800px;
+            height: 600px;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: row;
+        }
+
+        .bookmarks-panel {
+            width: 40%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #eee;
+        }
+
+        .preview-panel {
+            width: 40%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #eee;
+        }
+
+        .preview-header {
+            background: #f8f9fa;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .preview-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .actions-panel {
+            width: 20%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+            gap: 5px;
+            align-items: stretch;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .search-container {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .bookmarks-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px 0;
+        }
+
+        .bookmarks-tree {
+            padding: 0 15px;
+        }
+
+        .folder {
+            margin: 3px 0;
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .folder-header:hover {
+            background: #f8f9fa;
+        }
+
+        .folder-icon {
+            margin-right: 6px;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        .folder-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .folder-name {
+            font-weight: 500;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .folder-children {
+            margin-left: 15px;
+            border-left: 2px solid #e1e5e9;
+            padding-left: 10px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .folder-children.expanded {
+            max-height: 1000px;
+        }
+
+        .bookmark {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+            margin: 1px 0;
+        }
+
+        .bookmark:hover {
+            background: #f8f9fa;
+        }
+
+        .bookmark-icon {
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        .bookmark-title {
+            flex: 1;
+            font-size: 12px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bookmark-url {
+            font-size: 10px;
+            color: #666;
+            margin-left: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 85%;
+            max-width: 600px;
+            height: 75%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .close {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            padding: 5px;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .thumbnail-container {
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #e1e5e9;
+            overflow: hidden;
+            flex: 1;
+            margin: 20px;
+            border-radius: 8px;
+        }
+
+        .thumbnail-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+            font-size: 16px;
+        }
+
+        .bookmark-actions {
+            display: flex;
+            gap: 3px;
+            flex-direction: column;
+            margin: 0;
+            flex-shrink: 0;
+            width: 100%;
+            align-items: flex-end;
+        }
+
+        .action-btn {
+            padding: 4px 6px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 500;
+            transition: all 0.2s;
+            flex: none;
+            width: 60px;
+            height: auto;
+            white-space: normal;
+            text-align: center;
+            line-height: 1.1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-btn.primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .action-btn.danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .action-btn.danger:hover {
+            background: #c0392b;
+            transform: translateY(-1px);
+        }
+
+        .action-btn.secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .action-btn.secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .move-folder-modal {
+            display: none;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-top: 10px;
+            flex-shrink: 0;
+        }
+
+        .move-folder-modal h4 {
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .folder-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #e1e5e9;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .folder-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .move-actions {
+            display: flex;
+            gap: 1px;
+        }
+
+        .move-actions .action-btn {
+            flex: 1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px 15px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .empty-state p {
+            font-size: 12px;
+        }
+
+        .error-message {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 15px;
+            color: #c62828;
+            font-size: 12px;
+        }
+
+        .error-message h4 {
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .highlight {
+            background-color: #fff3cd;
+            padding: 1px 3px;
+            border-radius: 2px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <h1>📚 Bookmark Manager</h1>
-            <button id="refreshBtn" class="refresh-btn" title="Refresh bookmarks">🔄</button>
-        </header>
-        
-        <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search bookmarks..." class="search-input">
-        </div>
-        
-        <div class="bookmarks-container">
-            <div id="bookmarksTree" class="bookmarks-tree"></div>
-        </div>
-        
-        <div id="previewModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 id="previewTitle">Bookmark Preview</h3>
-                    <span class="close">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <div id="previewThumbnail" class="thumbnail-container">
-                        <div class="loading">Loading thumbnail...</div>
-                    </div>
-                    <div class="bookmark-actions">
-                        <button id="openBookmark" class="action-btn primary">Open Bookmark</button>
-                        <button id="deleteBookmark" class="action-btn danger">Delete</button>
-                        <button id="moveBookmark" class="action-btn secondary">Move to Folder</button>
-                    </div>
-                    <div id="moveFolderModal" class="move-folder-modal">
-                        <h4>Select Destination Folder:</h4>
-                        <select id="folderSelect" class="folder-select">
-                            <option value="">Choose a folder...</option>
-                        </select>
-                        <div class="move-actions">
-                            <button id="confirmMove" class="action-btn primary">Move</button>
-                            <button id="cancelMove" class="action-btn secondary">Cancel</button>
-                        </div>
+        <div class="bookmarks-panel">
+            <header class="header">
+                <h1>📚 Bookmark Manager</h1>
+                <button id="refreshBtn" class="refresh-btn" title="Refresh bookmarks">🔄</button>
+            </header>
+            
+            <div id="errorMessage" class="error-message" style="display: none;">
+                <h4>⚠️ Error</h4>
+                <p id="errorText">Failed to load bookmarks. Please check permissions.</p>
+            </div>
+            
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search bookmarks..." class="search-input">
+            </div>
+            
+            <div class="bookmarks-container">
+                <div id="bookmarksTree" class="bookmarks-tree">
+                    <div class="empty-state">
+                        <div class="loading-spinner"></div>
+                        <h3>Loading your bookmarks...</h3>
+                        <p>Please wait while we load your Chrome bookmarks.</p>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div class="preview-panel">
+            <div class="preview-header">
+                <h3>Bookmark Preview</h3>
+            </div>
+            <div id="previewThumbnail" class="thumbnail-container">
+                <div class="loading">Click on a bookmark to see preview</div>
+            </div>
+        </div>
+
+        <div class="actions-panel">
+            <h3>Actions</h3>
+            <div class="bookmark-actions">
+                <button id="openBookmark" class="action-btn primary">Open<br>Bookmark</button>
+                <button id="deleteBookmark" class="action-btn danger">Delete</button>
+                <button id="moveBookmark" class="action-btn secondary">Move to<br>Folder</button>
+            </div>
+            <div id="moveFolderModal" class="move-folder-modal">
+                <h4>Select Destination Folder:</h4>
+                <select id="folderSelect" class="folder-select">
+                    <option value="">Choose a folder...</option>
+                </select>
+                <div class="move-actions">
+                    <button id="confirmMove" class="action-btn primary">Move</button>
+                    <button id="cancelMove" class="action-btn secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
     </div>
     
     <script src="popup.js"></script>

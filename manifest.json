@@ -1,17 +1,26 @@
 {
   "manifest_version": 3,
-  "name": "Bookmark Manager",
+  "name": "Chrome Bookmark Manager",
   "version": "1.0",
-  "description": "A comprehensive bookmark manager with nested dropdowns and thumbnail previews",
+  "description": "A comprehensive bookmark manager with search, preview, and organization features",
   "permissions": [
     "bookmarks",
     "tabs",
     "activeTab"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src *;"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Bookmark Manager"
+    "default_title": "Chrome Bookmark Manager"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["chrome-bookmark-manager.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",

@@ -1,4 +1,4 @@
-class BookmarkManager {
+class ChromeBookmarkManager {
     constructor() {
         this.bookmarks = [];
         this.filteredBookmarks = [];
@@ -17,8 +17,7 @@ class BookmarkManager {
         // Refresh button
         document.getElementById('refreshBtn').addEventListener('click', () => this.loadBookmarks());
 
-        // Modal controls
-        document.querySelector('.close').addEventListener('click', () => this.closeModal());
+        // Action controls
         document.getElementById('openBookmark').addEventListener('click', () => this.openBookmark());
         document.getElementById('deleteBookmark').addEventListener('click', () => this.deleteBookmark());
         document.getElementById('moveBookmark').addEventListener('click', () => this.showMoveModal());
@@ -26,14 +25,6 @@ class BookmarkManager {
         // Move functionality
         document.getElementById('confirmMove').addEventListener('click', () => this.confirmMove());
         document.getElementById('cancelMove').addEventListener('click', () => this.hideMoveModal());
-
-        // Close modal when clicking outside
-        window.addEventListener('click', (e) => {
-            const modal = document.getElementById('previewModal');
-            if (e.target === modal) {
-                this.closeModal();
-            }
-        });
     }
 
     async loadBookmarks() {
@@ -145,22 +136,46 @@ class BookmarkManager {
 
     async showBookmarkPreview(bookmark) {
         this.currentBookmark = bookmark;
-        const modal = document.getElementById('previewModal');
-        const title = document.getElementById('previewTitle');
         const thumbnail = document.getElementById('previewThumbnail');
 
-        title.textContent = bookmark.title;
-        
         // Show loading state
-        thumbnail.innerHTML = '<div class="loading">Loading thumbnail...</div>';
-        modal.style.display = 'block';
+        thumbnail.innerHTML = '<div class="loading">Loading webpage preview...</div>';
 
-        // Generate thumbnail using a service
+        // Create iframe to show actual webpage
         try {
-            const thumbnailUrl = await this.generateThumbnail(bookmark.url);
-            thumbnail.innerHTML = `<img src="${thumbnailUrl}" alt="Page thumbnail" onerror="this.parentElement.innerHTML='<div class=\\"loading\\">Thumbnail not available</div>'">`;
+            const iframe = document.createElement('iframe');
+            iframe.src = bookmark.url;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.style.borderRadius = '8px';
+            iframe.onload = () => {
+                // Iframe loaded successfully
+            };
+            iframe.onerror = () => {
+                // If iframe fails, show favicon fallback
+                const favicon = this.getFavicon(bookmark.url);
+                thumbnail.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+                        <div style="font-size: 80px; margin-bottom: 15px;">${favicon}</div>
+                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #333; text-align: center;">${bookmark.title}</div>
+                        <div style="font-size: 12px; color: #666; text-align: center; max-width: 90%; word-break: break-all;">${bookmark.url}</div>
+                    </div>
+                `;
+            };
+            
+            thumbnail.innerHTML = '';
+            thumbnail.appendChild(iframe);
         } catch (error) {
-            thumbnail.innerHTML = '<div class="loading">Thumbnail not available</div>';
+            // Show favicon fallback
+            const favicon = this.getFavicon(bookmark.url);
+            thumbnail.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+                    <div style="font-size: 80px; margin-bottom: 15px;">${favicon}</div>
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #333; text-align: center;">${bookmark.title}</div>
+                    <div style="font-size: 12px; color: #666; text-align: center; max-width: 90%; word-break: break-all;">${bookmark.url}</div>
+                </div>
+            `;
         }
 
         // Populate folder select for move functionality
@@ -168,9 +183,36 @@ class BookmarkManager {
     }
 
     async generateThumbnail(url) {
-        // Using a free thumbnail service
+        // Try multiple thumbnail services for better reliability
         const encodedUrl = encodeURIComponent(url);
-        return `https://api.thumbnail.ws/api/86b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8/thumbnail/get?url=${encodedUrl}&width=400&height=200`;
+        
+        // Try screenshotapi.net (free tier)
+        try {
+            return `https://shot.screenshotapi.net/screenshot?token=YOUR_TOKEN&url=${encodedUrl}&width=400&height=300&format=png`;
+        } catch (error) {
+            // Fallback to a different service
+            return `https://api.screenshotmachine.com?key=YOUR_KEY&url=${encodedUrl}&dimension=400x300`;
+        }
+    }
+
+    getFavicon(url) {
+        try {
+            const domain = new URL(url).hostname.toLowerCase();
+            if (domain.includes('google')) return '🔍';
+            if (domain.includes('github')) return '🐙';
+            if (domain.includes('stackoverflow')) return '📚';
+            if (domain.includes('youtube')) return '📺';
+            if (domain.includes('netflix')) return '🎬';
+            if (domain.includes('mozilla')) return '🦊';
+            if (domain.includes('react')) return '⚛️';
+            if (domain.includes('facebook')) return '📘';
+            if (domain.includes('twitter')) return '🐦';
+            if (domain.includes('linkedin')) return '💼';
+            if (domain.includes('reddit')) return '🤖';
+            return '🌐';
+        } catch {
+            return '🌐';
+        }
     }
 
     populateFolderSelect() {
@@ -188,7 +230,9 @@ class BookmarkManager {
     }
 
     closeModal() {
-        document.getElementById('previewModal').style.display = 'none';
+        // Clear the preview
+        const thumbnail = document.getElementById('previewThumbnail');
+        thumbnail.innerHTML = '<div class="loading">Click on a bookmark to see preview</div>';
         this.currentBookmark = null;
         this.hideMoveModal();
     }
@@ -286,12 +330,18 @@ class BookmarkManager {
     }
 
     showError(message) {
-        // Simple error display - in a real app you might want a more sophisticated notification system
-        alert(message);
+        const errorDiv = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        errorText.textContent = message;
+        errorDiv.style.display = 'block';
+        
+        // Hide the loading state
+        const bookmarksTree = document.getElementById('bookmarksTree');
+        bookmarksTree.innerHTML = '<div class="empty-state"><h3>Error</h3><p>Unable to load bookmarks</p></div>';
     }
 }
 
 // Initialize the bookmark manager when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new BookmarkManager();
+    new ChromeBookmarkManager();
 });
