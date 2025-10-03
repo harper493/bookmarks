@@ -132,6 +132,9 @@ class ChromeBookmarkManager {
         bookmarkDiv.addEventListener('click', () => this.showBookmarkPreview(bookmark));
         bookmarkDiv.setAttribute('data-bookmark-id', bookmark.id);
 
+        // Check if this bookmark is broken and mark it
+        this.checkAndMarkBrokenLink(bookmark, bookmarkDiv);
+
         return bookmarkDiv;
     }
 
@@ -431,6 +434,22 @@ class ChromeBookmarkManager {
         } catch (error) {
             // If we can't check it, consider it broken
             return true;
+        }
+    }
+
+    async checkAndMarkBrokenLink(bookmark, bookmarkDiv) {
+        if (!bookmark.url) return; // Skip folders
+        
+        try {
+            const isBroken = await this.checkIfUrlIsBroken(bookmark.url);
+            if (isBroken) {
+                bookmarkDiv.classList.add('broken');
+                console.log(`Marked as broken: ${bookmark.title} - ${bookmark.url}`);
+            }
+        } catch (error) {
+            console.log(`Error checking ${bookmark.url}:`, error);
+            // Mark as broken if we can't check it
+            bookmarkDiv.classList.add('broken');
         }
     }
 }

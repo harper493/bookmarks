@@ -185,6 +185,31 @@
             background: #f8f9fa;
         }
 
+        .bookmark.broken {
+            background: #ffebee;
+            border-left: 3px solid #f44336;
+            position: relative;
+        }
+
+        .bookmark.broken::before {
+            content: "⚠️";
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }
+
+        .bookmark.broken .bookmark-title {
+            color: #d32f2f;
+            font-weight: 600;
+        }
+
+        .bookmark.broken .bookmark-url {
+            color: #e57373;
+            text-decoration: line-through;
+        }
+
         .bookmark-icon {
             margin-right: 6px;
             font-size: 12px;
@@ -513,7 +538,7 @@
                 <button id="openBookmark" class="action-btn primary">Open<br>Bookmark</button>
                 <button id="deleteBookmark" class="action-btn danger">Delete</button>
                 <button id="moveBookmark" class="action-btn secondary">Move to<br>Folder</button>
-                <button id="deleteBrokenLinks" class="action-btn warning">Delete<br>Broken<br?>Links</button>
+                <button id="deleteBrokenLinks" class="action-btn warning">Delete<br>Broken<br>Links</button>
             </div>
             <div id="moveFolderModal" class="move-folder-modal">
                 <h4>Select Destination Folder:</h4>
