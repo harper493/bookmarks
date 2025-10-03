@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Bookmark Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 { color: #667eea; margin-bottom: 20px; }
+        .download-link {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 10px 0;
+            transition: background 0.3s;
+        }
+        .download-link:hover {
+            background: #5a6fd8;
+        }
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .url-list {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .url-list a {
+            color: #1976d2;
+            text-decoration: none;
+            display: block;
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 4px;
+        }
+        .url-list a:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Bookmark Manager - Download & Access</h1>
+        
+        <div class="instructions">
+            <h3>🚀 How to Access the Bookmark Manager:</h3>
+            <p>Since you're having trouble with localhost, here are several ways to access the bookmark manager:</p>
+        </div>
+
+        <h3>Option 1: Try These URLs</h3>
+        <div class="url-list">
+            <a href="http://localhost:8000/standalone.html" target="_blank">http://localhost:8000/standalone.html</a>
+            <a href="http://127.0.0.1:8000/standalone.html" target="_blank">http://127.0.0.1:8000/standalone.html</a>
+            <a href="http://localhost:8000/" target="_blank">http://localhost:8000/ (root)</a>
+        </div>
+
+        <h3>Option 2: Download the Standalone File</h3>
+        <p>Download the complete bookmark manager file and open it directly in your browser:</p>
+        <a href="/standalone.html" class="download-link" download="bookmark-manager.html">
+            📥 Download Bookmark Manager
+        </a>
+
+        <h3>Option 3: View Source and Copy</h3>
+        <p>If download doesn't work, you can view the source and copy it:</p>
+        <a href="/standalone.html" class="download-link" target="_blank">
+            👁️ View Source Code
+        </a>
+
+        <div class="instructions">
+            <h3>📋 What You'll Get:</h3>
+            <ul>
+                <li>Beautiful bookmark manager interface</li>
+                <li>Sample bookmarks organized in folders</li>
+                <li>Search functionality</li>
+                <li>Click bookmarks to see preview modals</li>
+                <li>Action buttons (Open, Delete, Move)</li>
+                <li>No server required - works offline!</li>
+            </ul>
+        </div>
+
+        <div class="instructions">
+            <h3>🔧 Troubleshooting:</h3>
+            <p>If localhost still doesn't work:</p>
+            <ul>
+                <li>Try different browsers (Chrome, Firefox, Safari, Edge)</li>
+                <li>Clear browser cache (Ctrl+F5)</li>
+                <li>Try incognito/private mode</li>
+                <li>Check if firewall is blocking localhost</li>
+                <li>Use the download option instead</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
