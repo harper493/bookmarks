@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmark Manager - Test Page</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📚 Bookmark Manager</h1>
+            <button id="refreshBtn" class="refresh-btn" title="Refresh bookmarks">🔄</button>
+        </header>
+        
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search bookmarks..." class="search-input">
+        </div>
+        
+        <div class="bookmarks-container">
+            <div id="bookmarksTree" class="bookmarks-tree">
+                <div class="empty-state">
+                    <h3>Demo Mode</h3>
+                    <p>This is a demo of the bookmark manager. To use with real bookmarks, install as a Chrome extension.</p>
+                    <div style="margin-top: 20px;">
+                        <h4>Sample Bookmarks:</h4>
+                        <div class="folder">
+                            <div class="folder-header">
+                                <span class="folder-icon">▶</span>
+                                <span class="folder-name">Work</span>
+                            </div>
+                            <div class="folder-children expanded">
+                                <div class="bookmark" data-bookmark-id="demo1">
+                                    <span class="bookmark-icon">🔖</span>
+                                    <span class="bookmark-title">Google</span>
+                                    <span class="bookmark-url">https://google.com</span>
+                                </div>
+                                <div class="bookmark" data-bookmark-id="demo2">
+                                    <span class="bookmark-icon">🔖</span>
+                                    <span class="bookmark-title">GitHub</span>
+                                    <span class="bookmark-url">https://github.com</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="folder">
+                            <div class="folder-header">
+                                <span class="folder-icon">▶</span>
+                                <span class="folder-name">Personal</span>
+                            </div>
+                            <div class="folder-children">
+                                <div class="bookmark" data-bookmark-id="demo3">
+                                    <span class="bookmark-icon">🔖</span>
+                                    <span class="bookmark-title">YouTube</span>
+                                    <span class="bookmark-url">https://youtube.com</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="previewModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="previewTitle">Bookmark Preview</h3>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div id="previewThumbnail" class="thumbnail-container">
+                        <div class="loading">Loading thumbnail...</div>
+                    </div>
+                    <div class="bookmark-actions">
+                        <button id="openBookmark" class="action-btn primary">Open Bookmark</button>
+                        <button id="deleteBookmark" class="action-btn danger">Delete</button>
+                        <button id="moveBookmark" class="action-btn secondary">Move to Folder</button>
+                    </div>
+                    <div id="moveFolderModal" class="move-folder-modal">
+                        <h4>Select Destination Folder:</h4>
+                        <select id="folderSelect" class="folder-select">
+                            <option value="">Choose a folder...</option>
+                            <option value="work">Work</option>
+                            <option value="personal">Personal</option>
+                        </select>
+                        <div class="move-actions">
+                            <button id="confirmMove" class="action-btn primary">Move</button>
+                            <button id="cancelMove" class="action-btn secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Demo version of the bookmark manager for testing
+        class DemoBookmarkManager {
+            constructor() {
+                this.currentBookmark = null;
+                this.initializeEventListeners();
+                this.setupDemoFolders();
+            }
+
+            initializeEventListeners() {
+                // Search functionality
+                const searchInput = document.getElementById('searchInput');
+                searchInput.addEventListener('input', (e) => this.filterBookmarks(e.target.value));
+
+                // Refresh button
+                document.getElementById('refreshBtn').addEventListener('click', () => this.loadBookmarks());
+
+                // Modal controls
+                document.querySelector('.close').addEventListener('click', () => this.closeModal());
+                document.getElementById('openBookmark').addEventListener('click', () => this.openBookmark());
+                document.getElementById('deleteBookmark').addEventListener('click', () => this.deleteBookmark());
+                document.getElementById('moveBookmark').addEventListener('click', () => this.showMoveModal());
+
+                // Move functionality
+                document.getElementById('confirmMove').addEventListener('click', () => this.confirmMove());
+                document.getElementById('cancelMove').addEventListener('click', () => this.hideMoveModal());
+
+                // Close modal when clicking outside
+                window.addEventListener('click', (e) => {
+                    const modal = document.getElementById('previewModal');
+                    if (e.target === modal) {
+                        this.closeModal();
+                    }
+                });
+
+                // Demo bookmark clicks
+                document.querySelectorAll('.bookmark').forEach(bookmark => {
+                    bookmark.addEventListener('click', () => {
+                        const title = bookmark.querySelector('.bookmark-title').textContent;
+                        const url = bookmark.querySelector('.bookmark-url').textContent;
+                        this.showBookmarkPreview({ title, url, id: bookmark.dataset.bookmarkId });
+                    });
+                });
+
+                // Demo folder toggles
+                document.querySelectorAll('.folder-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        const children = header.nextElementSibling;
+                        const icon = header.querySelector('.folder-icon');
+                        const isExpanded = children.classList.contains('expanded');
+                        
+                        if (isExpanded) {
+                            children.classList.remove('expanded');
+                            icon.classList.remove('expanded');
+                        } else {
+                            children.classList.add('expanded');
+                            icon.classList.add('expanded');
+                        }
+                    });
+                });
+            }
+
+            setupDemoFolders() {
+                // Expand the first folder by default
+                const firstFolder = document.querySelector('.folder-children');
+                if (firstFolder) {
+                    firstFolder.classList.add('expanded');
+                    firstFolder.previousElementSibling.querySelector('.folder-icon').classList.add('expanded');
+                }
+            }
+
+            async showBookmarkPreview(bookmark) {
+                this.currentBookmark = bookmark;
+                const modal = document.getElementById('previewModal');
+                const title = document.getElementById('previewTitle');
+                const thumbnail = document.getElementById('previewThumbnail');
+
+                title.textContent = bookmark.title;
+                
+                // Show demo thumbnail
+                thumbnail.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666;">
+                        <div style="font-size: 48px; margin-bottom: 10px;">🌐</div>
+                        <div>Demo Thumbnail</div>
+                        <div style="font-size: 12px; margin-top: 5px;">${bookmark.url}</div>
+                    </div>
+                `;
+                modal.style.display = 'block';
+            }
+
+            closeModal() {
+                document.getElementById('previewModal').style.display = 'none';
+                this.currentBookmark = null;
+                this.hideMoveModal();
+            }
+
+            openBookmark() {
+                if (this.currentBookmark) {
+                    window.open(this.currentBookmark.url, '_blank');
+                    this.closeModal();
+                }
+            }
+
+            deleteBookmark() {
+                if (!this.currentBookmark) return;
+                alert(`Demo: Would delete "${this.currentBookmark.title}"`);
+                this.closeModal();
+            }
+
+            showMoveModal() {
+                document.getElementById('moveFolderModal').style.display = 'block';
+            }
+
+            hideMoveModal() {
+                document.getElementById('moveFolderModal').style.display = 'none';
+            }
+
+            confirmMove() {
+                const select = document.getElementById('folderSelect');
+                const destinationFolder = select.value;
+                
+                if (destinationFolder && this.currentBookmark) {
+                    alert(`Demo: Would move "${this.currentBookmark.title}" to ${destinationFolder} folder`);
+                    this.closeModal();
+                }
+            }
+
+            filterBookmarks(searchTerm) {
+                const bookmarks = document.querySelectorAll('.bookmark');
+                const folders = document.querySelectorAll('.folder');
+                
+                if (!searchTerm.trim()) {
+                    bookmarks.forEach(bookmark => bookmark.style.display = '');
+                    folders.forEach(folder => folder.style.display = '');
+                    return;
+                }
+
+                const term = searchTerm.toLowerCase();
+                
+                bookmarks.forEach(bookmark => {
+                    const title = bookmark.querySelector('.bookmark-title').textContent.toLowerCase();
+                    const url = bookmark.querySelector('.bookmark-url').textContent.toLowerCase();
+                    const matches = title.includes(term) || url.includes(term);
+                    bookmark.style.display = matches ? '' : 'none';
+                });
+
+                // Show/hide folders based on whether they have visible children
+                folders.forEach(folder => {
+                    const visibleChildren = Array.from(folder.querySelectorAll('.bookmark')).some(
+                        bookmark => bookmark.style.display !== 'none'
+                    );
+                    folder.style.display = visibleChildren ? '' : 'none';
+                });
+            }
+
+            loadBookmarks() {
+                alert('Demo: Refreshing bookmarks...');
+            }
+        }
+
+        // Initialize the demo when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new DemoBookmarkManager();
+        });
+    </script>
+</body>
+</html>
