@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmark Manager - Standalone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .search-container {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .bookmarks-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .bookmarks-tree {
+            padding: 0 20px;
+        }
+
+        .folder {
+            margin: 5px 0;
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .folder-header:hover {
+            background: #f8f9fa;
+        }
+
+        .folder-icon {
+            margin-right: 8px;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+
+        .folder-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .folder-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .folder-children {
+            margin-left: 20px;
+            border-left: 2px solid #e1e5e9;
+            padding-left: 15px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .folder-children.expanded {
+            max-height: 1000px;
+        }
+
+        .bookmark {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+            margin: 2px 0;
+        }
+
+        .bookmark:hover {
+            background: #f8f9fa;
+        }
+
+        .bookmark-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .bookmark-title {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bookmark-url {
+            font-size: 12px;
+            color: #666;
+            margin-left: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .close {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .thumbnail-container {
+            width: 100%;
+            height: 200px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            border: 2px solid #e1e5e9;
+            overflow: hidden;
+        }
+
+        .thumbnail-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+
+        .bookmark-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .action-btn.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-btn.primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .action-btn.danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .action-btn.danger:hover {
+            background: #c0392b;
+            transform: translateY(-1px);
+        }
+
+        .action-btn.secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .action-btn.secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .move-folder-modal {
+            display: none;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .move-folder-modal h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .folder-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .folder-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .move-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .move-actions .action-btn {
+            flex: 1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .demo-notice {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px;
+            text-align: center;
+        }
+
+        .demo-notice h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📚 Bookmark Manager</h1>
+            <button id="refreshBtn" class="refresh-btn" title="Refresh bookmarks">🔄</button>
+        </header>
+        
+        <div class="demo-notice">
+            <h4>🎉 Standalone Demo</h4>
+            <p>This is a standalone version that works without a server. Click on bookmarks to see the preview modal!</p>
+        </div>
+        
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search bookmarks..." class="search-input">
+        </div>
+        
+        <div class="bookmarks-container">
+            <div id="bookmarksTree" class="bookmarks-tree">
+                <div class="folder">
+                    <div class="folder-header">
+                        <span class="folder-icon expanded">▶</span>
+                        <span class="folder-name">Work</span>
+                    </div>
+                    <div class="folder-children expanded">
+                        <div class="bookmark" data-bookmark-id="demo1">
+                            <span class="bookmark-icon">🔖</span>
+                            <span class="bookmark-title">Google</span>
+                            <span class="bookmark-url">https://google.com</span>
+                        </div>
+                        <div class="bookmark" data-bookmark-id="demo2">
+                            <span class="bookmark-icon">🔖</span>
+                            <span class="bookmark-title">GitHub</span>
+                            <span class="bookmark-url">https://github.com</span>
+                        </div>
+                        <div class="bookmark" data-bookmark-id="demo3">
+                            <span class="bookmark-icon">🔖</span>
+                            <span class="bookmark-title">Stack Overflow</span>
+                            <span class="bookmark-url">https://stackoverflow.com</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="folder">
+                    <div class="folder-header">
+                        <span class="folder-icon">▶</span>
+                        <span class="folder-name">Personal</span>
+                    </div>
+                    <div class="folder-children">
+                        <div class="bookmark" data-bookmark-id="demo4">
+                            <span class="bookmark-icon">🔖</span>
+                            <span class="bookmark-title">YouTube</span>
+                            <span class="bookmark-url">https://youtube.com</span>
+                        </div>
+                        <div class="bookmark" data-bookmark-id="demo5">
+                            <span class="bookmark-icon">🔖</span>
+                            <span class="bookmark-title">Netflix</span>
+                            <span class="bookmark-url">https://netflix.com</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="folder">
+                    <div class="folder-header">
+                        <span class="folder-icon">▶</span>
+                        <span class="folder-name">Development</span>
+                    </div>
+                    <div class="folder-children">
+                        <div class="bookmark" data-bookmark-id="demo6">
+                            <span class="bookmark-icon">🔖</span>
+                            <span class="bookmark-title">MDN Web Docs</span>
+                            <span class="bookmark-url">https://developer.mozilla.org</span>
+                        </div>
+                        <div class="bookmark" data-bookmark-id="demo7">
+                            <span class="bookmark-icon">🔖</span>
+                            <span class="bookmark-title">React Documentation</span>
+                            <span class="bookmark-url">https://react.dev</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="previewModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="previewTitle">Bookmark Preview</h3>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div id="previewThumbnail" class="thumbnail-container">
+                        <div class="loading">Loading thumbnail...</div>
+                    </div>
+                    <div class="bookmark-actions">
+                        <button id="openBookmark" class="action-btn primary">Open Bookmark</button>
+                        <button id="deleteBookmark" class="action-btn danger">Delete</button>
+                        <button id="moveBookmark" class="action-btn secondary">Move to Folder</button>
+                    </div>
+                    <div id="moveFolderModal" class="move-folder-modal">
+                        <h4>Select Destination Folder:</h4>
+                        <select id="folderSelect" class="folder-select">
+                            <option value="">Choose a folder...</option>
+                            <option value="work">Work</option>
+                            <option value="personal">Personal</option>
+                            <option value="development">Development</option>
+                        </select>
+                        <div class="move-actions">
+                            <button id="confirmMove" class="action-btn primary">Move</button>
+                            <button id="cancelMove" class="action-btn secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Standalone demo version of the bookmark manager
+        class StandaloneBookmarkManager {
+            constructor() {
+                this.currentBookmark = null;
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                // Search functionality
+                const searchInput = document.getElementById('searchInput');
+                searchInput.addEventListener('input', (e) => this.filterBookmarks(e.target.value));
+
+                // Refresh button
+                document.getElementById('refreshBtn').addEventListener('click', () => this.loadBookmarks());
+
+                // Modal controls
+                document.querySelector('.close').addEventListener('click', () => this.closeModal());
+                document.getElementById('openBookmark').addEventListener('click', () => this.openBookmark());
+                document.getElementById('deleteBookmark').addEventListener('click', () => this.deleteBookmark());
+                document.getElementById('moveBookmark').addEventListener('click', () => this.showMoveModal());
+
+                // Move functionality
+                document.getElementById('confirmMove').addEventListener('click', () => this.confirmMove());
+                document.getElementById('cancelMove').addEventListener('click', () => this.hideMoveModal());
+
+                // Close modal when clicking outside
+                window.addEventListener('click', (e) => {
+                    const modal = document.getElementById('previewModal');
+                    if (e.target === modal) {
+                        this.closeModal();
+                    }
+                });
+
+                // Demo bookmark clicks
+                document.querySelectorAll('.bookmark').forEach(bookmark => {
+                    bookmark.addEventListener('click', () => {
+                        const title = bookmark.querySelector('.bookmark-title').textContent;
+                        const url = bookmark.querySelector('.bookmark-url').textContent;
+                        this.showBookmarkPreview({ title, url, id: bookmark.dataset.bookmarkId });
+                    });
+                });
+
+                // Demo folder toggles
+                document.querySelectorAll('.folder-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        const children = header.nextElementSibling;
+                        const icon = header.querySelector('.folder-icon');
+                        const isExpanded = children.classList.contains('expanded');
+                        
+                        if (isExpanded) {
+                            children.classList.remove('expanded');
+                            icon.classList.remove('expanded');
+                        } else {
+                            children.classList.add('expanded');
+                            icon.classList.add('expanded');
+                        }
+                    });
+                });
+            }
+
+            async showBookmarkPreview(bookmark) {
+                this.currentBookmark = bookmark;
+                const modal = document.getElementById('previewModal');
+                const title = document.getElementById('previewTitle');
+                const thumbnail = document.getElementById('previewThumbnail');
+
+                title.textContent = bookmark.title;
+                
+                // Show demo thumbnail with a nice visual
+                const favicon = this.getFavicon(bookmark.url);
+                thumbnail.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+                        <div style="font-size: 64px; margin-bottom: 15px;">${favicon}</div>
+                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 5px; color: #333;">${bookmark.title}</div>
+                        <div style="font-size: 14px; color: #666; text-align: center; max-width: 80%; word-break: break-all;">${bookmark.url}</div>
+                    </div>
+                `;
+                modal.style.display = 'block';
+            }
+
+            getFavicon(url) {
+                const domain = new URL(url).hostname.toLowerCase();
+                if (domain.includes('google')) return '🔍';
+                if (domain.includes('github')) return '🐙';
+                if (domain.includes('stackoverflow')) return '📚';
+                if (domain.includes('youtube')) return '📺';
+                if (domain.includes('netflix')) return '🎬';
+                if (domain.includes('mozilla')) return '🦊';
+                if (domain.includes('react')) return '⚛️';
+                return '🌐';
+            }
+
+            closeModal() {
+                document.getElementById('previewModal').style.display = 'none';
+                this.currentBookmark = null;
+                this.hideMoveModal();
+            }
+
+            openBookmark() {
+                if (this.currentBookmark) {
+                    window.open(this.currentBookmark.url, '_blank');
+                    this.closeModal();
+                }
+            }
+
+            deleteBookmark() {
+                if (!this.currentBookmark) return;
+                if (confirm(`Are you sure you want to delete "${this.currentBookmark.title}"?`)) {
+                    alert(`Demo: Would delete "${this.currentBookmark.title}"`);
+                    this.closeModal();
+                }
+            }
+
+            showMoveModal() {
+                document.getElementById('moveFolderModal').style.display = 'block';
+            }
+
+            hideMoveModal() {
+                document.getElementById('moveFolderModal').style.display = 'none';
+            }
+
+            confirmMove() {
+                const select = document.getElementById('folderSelect');
+                const destinationFolder = select.value;
+                
+                if (destinationFolder && this.currentBookmark) {
+                    alert(`Demo: Would move "${this.currentBookmark.title}" to ${destinationFolder} folder`);
+                    this.closeModal();
+                }
+            }
+
+            filterBookmarks(searchTerm) {
+                const bookmarks = document.querySelectorAll('.bookmark');
+                const folders = document.querySelectorAll('.folder');
+                
+                if (!searchTerm.trim()) {
+                    bookmarks.forEach(bookmark => bookmark.style.display = '');
+                    folders.forEach(folder => folder.style.display = '');
+                    return;
+                }
+
+                const term = searchTerm.toLowerCase();
+                
+                bookmarks.forEach(bookmark => {
+                    const title = bookmark.querySelector('.bookmark-title').textContent.toLowerCase();
+                    const url = bookmark.querySelector('.bookmark-url').textContent.toLowerCase();
+                    const matches = title.includes(term) || url.includes(term);
+                    bookmark.style.display = matches ? '' : 'none';
+                });
+
+                // Show/hide folders based on whether they have visible children
+                folders.forEach(folder => {
+                    const visibleChildren = Array.from(folder.querySelectorAll('.bookmark')).some(
+                        bookmark => bookmark.style.display !== 'none'
+                    );
+                    folder.style.display = visibleChildren ? '' : 'none';
+                });
+            }
+
+            loadBookmarks() {
+                alert('Demo: Refreshing bookmarks...');
+            }
+        }
+
+        // Initialize the demo when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new StandaloneBookmarkManager();
+        });
+    </script>
+</body>
+</html>
